@@ -25,6 +25,8 @@ const ContentMap = () => {
               <SelectContent className="bg-[#2d3748] text-white border-gray-700">
                 <SelectItem value="geo">GEO</SelectItem>
                 <SelectItem value="utm">UTM</SelectItem>
+                <SelectItem value="dms">DMS</SelectItem>
+                <SelectItem value="lco">LCO</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -36,7 +38,8 @@ const ContentMap = () => {
               </SelectTrigger>
               <SelectContent className="bg-[#2d3748] text-white border-gray-700">
                 <SelectItem value="satelit">SATELIT</SelectItem>
-                <SelectItem value="terrain">TERRAIN</SelectItem>
+                <SelectItem value="topografi">TOPOGRAFI</SelectItem>
+                <SelectItem value="jalan">JALAN</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -60,7 +63,7 @@ const ContentMap = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-[#2d3748] text-white border-gray-700">
                   <SelectItem value="360">360</SelectItem>
-                  <SelectItem value="180">180</SelectItem>
+                  <SelectItem value="6400">6400</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -78,17 +81,17 @@ const ContentMap = () => {
             <div className="grid grid-cols-3 gap-4 mb-6">
               {["Latitude", "Longitude", "Altitude"].map((label) => (
                 <div key={label}>
-                  <label className="block text-black mb-2 text-sm">{label}</label>
+                  <label className="block text-black mb-2 text-sm text-center">{label}</label>
                   <Input className="bg-[#2d3748] border-gray-700 text-white" />
                 </div>
               ))}
             </div>
 
-            <label className="block text-black mb-2 text-sm">Plotting Gunshot</label>
+            <label className="block text-black mb-2 text-sm text-center">Plotting Gunshot</label>
             <div className="grid grid-cols-3 gap-4 mb-6">
               {["Latitude", "Longitude", "Altitude"].map((label) => (
                 <div key={`gun-${label}`}>
-                  <label className="block text-black mb-2 text-sm">{label}</label>
+                  <label className="block text-black mb-2 text-sm text-center">{label}</label>
                   <Input className="bg-[#2d3748] border-gray-700 text-white" />
                 </div>
               ))}

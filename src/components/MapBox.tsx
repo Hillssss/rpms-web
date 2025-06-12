@@ -1,8 +1,8 @@
 "use client";
-import { Map, Source, Layer, Marker } from "react-map-gl";
+import { Map, Source, Layer, Marker, MapRef } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { GiRadarDish } from "react-icons/gi";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import * as turf from "@turf/turf";
 import type { FeatureCollection } from "geojson"; // pastikan ini di bagian import atas
 
@@ -12,12 +12,24 @@ const RADIUS_COLORS = {
   LARGE: "#00FF00"
 };
 
-const DARK_GREEN = "#033D1A";
 const DARK_YELLOW = "#D6C90C";
 
 const MapBox = () => {
+   const mapRef = useRef<MapRef>(null);
   const latitude = -6.9370568;
   const longitude = 107.6313287;
+
+  const handleMarkerClick = () => {
+    if (mapRef.current) {
+      // Zoom ke level 17 dan animasi ke posisi marker
+      mapRef.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 19,
+        speed: 1.2,
+        curve: 1
+      });
+    }
+  };
 
   const radiusArray = useMemo(() => [25, 50, 75, 100, 250, 500, 750, 1000, 1500, 2000, 3000], []);
 
@@ -124,6 +136,7 @@ const [waveCircle, setWaveCircle] = useState<FeatureCollection | null>(null);
   return (
     <div className="w-full h-full">
       <Map
+        ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         initialViewState={{ longitude, latitude, zoom: 17 }}
         maxBounds={[[105.5, -8.2], [115, -5.8]]}
@@ -132,7 +145,12 @@ const [waveCircle, setWaveCircle] = useState<FeatureCollection | null>(null);
         mapStyle="mapbox://styles/mapbox/satellite-v9"
         style={{ width: "100%", height: "100%" }}
       >
-        <Marker longitude={longitude} latitude={latitude}>
+        <Marker 
+          longitude={longitude} 
+          latitude={latitude}
+          onClick={handleMarkerClick}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="text-red-500 text-3xl animate-pulse">
             <GiRadarDish />
           </div>
