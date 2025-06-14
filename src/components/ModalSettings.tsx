@@ -11,18 +11,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FaCogs } from "react-icons/fa";
+import { useOperasiSubmit } from "@/hooks/useOperasiSubmit";
+
 
 import ResponsiveTabs from "./ResponsiveTabs";
 
-
 const  ModalSettings = () => {
-  const [open, setOpen] = useState(false);
-
-  const handleSave = () => {
-    // TODO: Tambahkan logika penyimpanan data di sini
-    console.log("Data disimpan");
-    setOpen(false);
-  };
+ const [open, setOpen] = useState(false);
+  const { handleSubmit } = useOperasiSubmit(() => setOpen(false)); // <- Tutup modal jika sukses
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -57,7 +53,7 @@ const  ModalSettings = () => {
           <Button
             variant="default"
             className="w-full sm:w-auto"
-            onClick={handleSave}
+            onClick={handleSubmit}
           >
             Simpan
           </Button>

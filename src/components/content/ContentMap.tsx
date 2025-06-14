@@ -9,13 +9,22 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useOperasi } from "@/contexts/OperasiContext";
 
 const ContentMap = () => {
+  
+  const {namaOperasi, setOperasi } = useOperasi();
+
+  const handleChange = (type: "radar" | "gunshot", field: string, value: string) => {
+  const numeric = value.replace(/[^\d.-]/g, ""); // filter non-numeric
+  setOperasi({ [type]: { [field]: numeric } });
+};
+
     return(
         <div className="max-h-[50vh] overflow-y-auto pr-2">
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         {/* Jenis Koordinat dan Peta */}
-        <div className="w-full lg:w-1/2 border border-gray-700 p-6">
+        <div className="w-full border border-gray-700 p-6">
           <div className="mb-4">
             <label className="block text-black mb-2 text-sm text-center">Jenis Koordinat dan Peta</label>
             <Select defaultValue="geo">
@@ -52,7 +61,7 @@ const ContentMap = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-[#2d3748] text-white border-gray-700">
                   <SelectItem value="meter">METER</SelectItem>
-                  <SelectItem value="km">KM</SelectItem>
+                  <SelectItem value="km">KILOMETER</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -75,29 +84,46 @@ const ContentMap = () => {
         </div>
 
         {/* Plotting Radar */}
-        <div className="w-full lg:w-1/2 border border-gray-700 p-6">
-          <div className="mb-2">
-            <label className="block text-black mb-2 text-sm text-center">Plotting Radar</label>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {["Latitude", "Longitude", "Altitude"].map((label) => (
-                <div key={label}>
-                  <label className="block text-black mb-2 text-sm text-center">{label}</label>
-                  <Input className="bg-[#2d3748] border-gray-700 text-white" />
-                </div>
-              ))}
-            </div>
+        <div className="w-full border border-gray-700 p-6">
+  <div className="mb-2">
+    <label className="block text-black mb-2 text-sm text-center">Plotting Radar</label>
+    <div className="grid grid-cols-3 gap-4 mb-6">
+      {["Latitude", "Longitude", "Altitude"].map((label) => (
+        <div key={label}>
+          <label className="block text-black mb-2 text-sm text-center">{label}</label>
+         <Input
+            type="text"
+            inputMode="decimal"
+            className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
+            onChange={(e) => {
+              const onlyNumbers = e.target.value.replace(/[^\d.-]/g, "");
+              handleChange("radar", label.toLowerCase(), onlyNumbers);
+            }}
+          />
 
-            <label className="block text-black mb-2 text-sm text-center">Plotting Gunshot</label>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {["Latitude", "Longitude", "Altitude"].map((label) => (
-                <div key={`gun-${label}`}>
-                  <label className="block text-black mb-2 text-sm text-center">{label}</label>
-                  <Input className="bg-[#2d3748] border-gray-700 text-white" />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
+      ))}
+    </div>
+
+    <label className="block text-black mb-2 text-sm text-center">Plotting Gunshot</label>
+    <div className="grid grid-cols-3 gap-4 mb-6">
+      {["Latitude", "Longitude", "Altitude"].map((label) => (
+        <div key={`gun-${label}`}>
+          <label className="block text-black mb-2 text-sm text-center">{label}</label>
+          <Input
+            type="text"
+            inputMode="decimal"
+            className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
+            onChange={(e) => {
+              const onlyNumbers = e.target.value.replace(/[^\d.-]/g, "");
+              handleChange("gunshot", label.toLowerCase(), onlyNumbers);
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
       </div>
 
       <div className="mt-4 border border-gray-700 p-6">
@@ -105,6 +131,8 @@ const ContentMap = () => {
         <Input
           placeholder="Masukkan nama operasi"
           className="bg-[#2d3748] border-gray-700 text-white text-center"
+           value={namaOperasi}
+          onChange={(e) => setOperasi({ namaOperasi: e.target.value })}
         />
       </div>
     </div>
