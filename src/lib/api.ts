@@ -26,4 +26,17 @@ export const fetchRiwayatOperasi = async () => {
   return response.data.data;
 };
 
+export const pindahOperasi = (id_operasi: string | number) =>
+  API.post(`/api/operasi/pindah?id_operasi=${id_operasi}`);
+
+export const fetchCurrentOperasi = async (id_operasi: number) => {
+  const res = await fetch(`http://localhost:6655/api/operasi/current?id_operasi=${id_operasi}`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Gagal mengambil data operasi");
+  const data = await res.json();
+  return data.data;
+};
+
+
 export default API;

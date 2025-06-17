@@ -1,4 +1,5 @@
-// hooks/useMapBox.ts
+"use client";
+
 import { useRef, useMemo, useState, useEffect } from "react";
 import type { MapRef } from "react-map-gl";
 import * as turf from "@turf/turf";
@@ -16,7 +17,7 @@ const DARK_YELLOW = "#D6C90C";
 
 export const useMapBox = () => {
   const mapRef = useRef<MapRef>(null);
-  const { radar, isConnected } = useOperasi();
+  const { radar, isConnected, isStarted } = useOperasi();
 
   const latitude = Number(radar.latitude);
   const longitude = Number(radar.longitude);
@@ -40,69 +41,71 @@ export const useMapBox = () => {
   const radiusArray = useMemo(() => [25, 50, 75, 100, 250, 500, 750, 1000, 1500, 2000, 3000], []);
 
   const geojsonData = useMemo(() => {
-    if (!isValidCoordinate || !isConnected) return null;
+  if (!isValidCoordinate || !isStarted) return null;
 
-    const circleFeatures = radiusArray.map((radius) => {
-      const circle = turf.circle([longitude, latitude], radius / 1000, {
-        steps: 64,
+  const circleFeatures = radiusArray.map((radius) => {
+    const circle = turf.circle([longitude, latitude], radius / 1000, {
+      steps: 64,
+      units: "kilometers",
+    });
+
+    let color = RADIUS_COLORS.LARGE;
+    if (radius <= 100) color = RADIUS_COLORS.SMALL;
+    else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
+
+    circle.properties = { color };
+    return circle;
+  });
+
+  const sectorFeatures = radiusArray.map((radius) => {
+    const sector = turf.sector([longitude, latitude], radius / 1000, -22.5, 22.5, {
+      steps: 64,
+      units: "kilometers",
+    });
+
+    let color = RADIUS_COLORS.LARGE;
+    if (radius <= 100) color = RADIUS_COLORS.SMALL;
+    else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
+
+    sector.properties = { color };
+    return sector;
+  });
+
+  const bearings = [0, 90, 180, 270];
+  const labelFeatures = radiusArray.flatMap((radius) =>
+    bearings.map((bearing) => {
+      const labelPoint = turf.destination([longitude, latitude], radius / 1000, bearing, {
         units: "kilometers",
       });
 
-      let color = RADIUS_COLORS.LARGE;
-      if (radius <= 100) color = RADIUS_COLORS.SMALL;
-      else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
+      labelPoint.properties = {
+        label: radius >= 1000 ? `${radius / 1000} km` : `${radius} m`,
+      };
 
-      circle.properties = { color };
-      return circle;
-    });
+      return labelPoint;
+    })
+  );
 
-    const sectorFeatures = radiusArray.map((radius) => {
-      const sector = turf.sector([longitude, latitude], radius / 1000, -22.5, 22.5, {
-        steps: 64,
-        units: "kilometers",
-      });
+  return {
+    circles: {
+      type: "FeatureCollection",
+      features: circleFeatures,
+    },
+    sectors: {
+      type: "FeatureCollection",
+      features: sectorFeatures,
+    },
+    labels: {
+      type: "FeatureCollection",
+      features: labelFeatures,
+    },
+  };
+}, [latitude, longitude, radiusArray, isStarted, isValidCoordinate]);
 
-      let color = RADIUS_COLORS.LARGE;
-      if (radius <= 100) color = RADIUS_COLORS.SMALL;
-      else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
 
-      sector.properties = { color };
-      return sector;
-    });
-
-    const bearings = [0, 90, 180, 270];
-    const labelFeatures = radiusArray.flatMap((radius) =>
-      bearings.map((bearing) => {
-        const labelPoint = turf.destination([longitude, latitude], radius / 1000, bearing, {
-          units: "kilometers",
-        });
-
-        labelPoint.properties = {
-          label: radius >= 1000 ? `${radius / 1000} km` : `${radius} m`,
-        };
-
-        return labelPoint;
-      })
-    );
-
-    return {
-      circles: {
-        type: "FeatureCollection",
-        features: circleFeatures,
-      },
-      sectors: {
-        type: "FeatureCollection",
-        features: sectorFeatures,
-      },
-      labels: {
-        type: "FeatureCollection",
-        features: labelFeatures,
-      },
-    };
-  }, [latitude, longitude, radiusArray, isConnected, isValidCoordinate]);
-
+  // Fly to radar location once operasi is started
   useEffect(() => {
-    if (isConnected && isValidCoordinate && mapRef.current) {
+    if (isStarted && isValidCoordinate && mapRef.current) {
       const timeout = setTimeout(() => {
         mapRef.current?.flyTo({
           center: [longitude, latitude],
@@ -114,8 +117,9 @@ export const useMapBox = () => {
 
       return () => clearTimeout(timeout);
     }
-  }, [isConnected, isValidCoordinate, latitude, longitude]);
+  }, [isStarted, isValidCoordinate, latitude, longitude]);
 
+  // Wavecircle animation only when connected
   useEffect(() => {
     if (!isConnected || !isValidCoordinate) {
       setWaveCircle(null);
@@ -165,6 +169,7 @@ export const useMapBox = () => {
   return {
     mapRef,
     isConnected,
+    isStarted,
     longitude,
     latitude,
     waveCircle,

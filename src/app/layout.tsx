@@ -4,6 +4,8 @@ import "./globals.css";
 import Header from "@/components/Header"; // Pastikan path sesuai
 import { Toaster } from 'sonner';
 import { OperasiProvider } from "@/contexts/OperasiContext";
+import { MapProvider } from "@/contexts/MapContext";
+import { DeteksiProvider } from "@/contexts/DeteksiContext";
 
 const baiJamjuree = Bai_Jamjuree({
   subsets: ["latin"],
@@ -24,14 +26,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="h-full flex flex-col bg-accent">
-        <OperasiProvider>
-
-        
+        <MapProvider>
+           <OperasiProvider>
+            <DeteksiProvider>
         <Toaster richColors position="top-center"
          />
         <Header />
         <main className="flex-1 pt-[96px] overflow-hidden">{children}</main>
+        </DeteksiProvider>
         </OperasiProvider>
+        </MapProvider>
       </body>
     </html>
   );

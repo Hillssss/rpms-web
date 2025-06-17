@@ -15,10 +15,19 @@ import ContentRadar from "./content/ContentRadar";
 import ContentKoneksi from "./content/ContentKoneksi";
 import ContentRiwayat from "./content/ContentRiwayat";
 
-const ResponsiveTabs = () => {
+interface ResponsiveTabsProps {
+  onSelectOperasi?: () => void; // Tambahkan prop untuk callback
+}
+
+const ResponsiveTabs = ({ onSelectOperasi }: ResponsiveTabsProps) => {
   const [tabValue, setTabValue] = useState("map");
 
-  const tabs = ["map", "radar", "koneksi", "riwayat"];
+  const tabs = [
+    { value: "map", label: "MAP" },
+    { value: "radar", label: "RADAR" },
+    { value: "koneksi", label: "KONEKSI" },
+    { value: "riwayat", label: "RIWAYAT" },
+  ];
 
   return (
     <Tabs value={tabValue} onValueChange={setTabValue} className="w-full">
@@ -30,8 +39,8 @@ const ResponsiveTabs = () => {
           </SelectTrigger>
           <SelectContent>
             {tabs.map((tab) => (
-              <SelectItem key={tab} value={tab}>
-                {tab.toUpperCase()}
+              <SelectItem key={tab.value} value={tab.value}>
+                {tab.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -43,11 +52,11 @@ const ResponsiveTabs = () => {
         <TabsList className="flex w-max min-w-full border-b border-gray-700 p-0 h-auto">
           {tabs.map((tab) => (
             <TabsTrigger
-              key={tab}
-              value={tab}
+              key={tab.value}
+              value={tab.value}
               className="min-w-[100px] px-4 py-3 text-black whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-black"
             >
-              {tab.toUpperCase()}
+              {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -64,7 +73,7 @@ const ResponsiveTabs = () => {
         <ContentKoneksi />
       </TabsContent>
       <TabsContent value="riwayat">
-        <ContentRiwayat />
+        <ContentRiwayat onSelect={onSelectOperasi} /> {/* Teruskan callback */}
       </TabsContent>
     </Tabs>
   );

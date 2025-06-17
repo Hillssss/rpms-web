@@ -14,6 +14,8 @@ type OperasiState = {
   idOperasi: string;
   isStarted: boolean;
   isConnected: boolean;
+  activate: boolean;
+   setActivate: (value: boolean) => void;
   setOperasi: (data: Partial<OperasiState>) => void;
   setStarted: (value: boolean) => void;
   setConnected: (value: boolean) => void;
@@ -24,8 +26,10 @@ const defaultState: OperasiState = {
   radar: { latitude: "", longitude: "", altitude: "" },
   gunshot: { latitude: "", longitude: "", altitude: "" },
   idOperasi: "",
+  activate:false,
   isStarted: false,
   isConnected: false,
+  setActivate: () => {},
   setOperasi: () => {},
   setStarted: () => {},
   setConnected: () => {},
@@ -35,7 +39,7 @@ const OperasiContext = createContext<OperasiState>(defaultState);
 export const useOperasi = () => useContext(OperasiContext);
 
 export const OperasiProvider = ({ children }: { children: React.ReactNode }) => {
-  const [state, setState] = useState<Omit<OperasiState, "setOperasi" | "setStarted" | "setConnected" | "isStarted" | "isConnected">>({
+  const [state, setState] = useState<Omit<OperasiState, "setOperasi" | "setStarted" | "setConnected" | "isStarted" | "isConnected" | "activate" | "setActivate">>({
     namaOperasi: "",
     radar: { latitude: "", longitude: "", altitude: "" },
     gunshot: { latitude: "", longitude: "", altitude: "" },
@@ -44,8 +48,13 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
 
   const [isStarted, setStarted] = useState(false);
   const [isConnected, setConnected] = useState(false);
+  const [activate, setActivate] = useState(false);
 
-  const setOperasi = (data: Partial<OperasiState>) => {
+  const setOperasi = (data: Partial<Omit<OperasiState, "setOperasi" | "setStarted" | "setConnected" | "setActivate" | "isStarted" | "isConnected" | "activate">> & { activate?: boolean }) => {
+  if (typeof data.activate === "boolean") {
+    setActivate(data.activate);
+  }
+
   setState((prev) => ({
     ...prev,
     ...data,
@@ -60,9 +69,11 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
   }));
 };
 
+
+
   return (
     <OperasiContext.Provider
-      value={{ ...state, isStarted, isConnected, setOperasi, setStarted, setConnected }}
+      value={{ ...state, isStarted, isConnected,activate, setOperasi, setStarted, setConnected, setActivate , }}
     >
       {children}
     </OperasiContext.Provider>

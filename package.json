@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.2.5",
@@ -28,6 +29,7 @@
     "react-icons": "^5.5.0",
     "react-map-gl": "^7.1.9",
     "sonner": "^2.0.5",
+    "sweetalert2": "^11.22.0",
     "tailwind-merge": "^3.3.0",
     "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss-animate": "^1.0.7"

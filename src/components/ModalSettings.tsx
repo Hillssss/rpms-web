@@ -12,22 +12,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { FaCogs } from "react-icons/fa";
 import { useOperasiSubmit } from "@/hooks/useOperasiSubmit";
-
-
 import ResponsiveTabs from "./ResponsiveTabs";
 
-const  ModalSettings = () => {
- const [open, setOpen] = useState(false);
-  const { handleSubmit } = useOperasiSubmit(() => setOpen(false)); // <- Tutup modal jika sukses
+const ModalSettings = () => {
+  const [open, setOpen] = useState(false);
+  const { handleSubmit } = useOperasiSubmit(() => setOpen(false));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="default"
-          size="superIcon"
-          onClick={() => setOpen(true)}
-        >
+        <Button variant="default" size="superIcon" onClick={() => setOpen(true)}>
           <FaCogs className="text-white hover:text-primary" />
         </Button>
       </DialogTrigger>
@@ -38,10 +32,9 @@ const  ModalSettings = () => {
         </DialogHeader>
 
         <div className="max-h-[calc(90vh-150px)] overflow-y-auto pr-2">
-          <ResponsiveTabs />
+          <ResponsiveTabs onSelectOperasi={() => setOpen(false)} />
         </div>
 
-        {/* Responsive Footer */}
         <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-4">
           <Button
             variant="secondary"
@@ -61,8 +54,6 @@ const  ModalSettings = () => {
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 export default ModalSettings;
-
-

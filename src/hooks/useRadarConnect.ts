@@ -15,6 +15,7 @@ export const useRadarConnect = () => {
     isStarted,
     isConnected,
     setConnected,
+    setStarted,
   } = useOperasi();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +38,8 @@ export const useRadarConnect = () => {
       } else {
         const res = await disconnectOperasi();
         if (res.status === 200) {
-          setConnected(false);
+          setConnected(false);    
+          setStarted(false);      
          
 
           if (idOperasi) {
