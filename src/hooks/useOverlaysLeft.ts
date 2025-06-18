@@ -24,7 +24,11 @@ export const useOverlaysLeft = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!idOperasi) return;
+      if (!idOperasi) {
+        setSelectedItem(null);
+        setDetectionData([]);
+        return;
+      }
 
       try {
         const result = await fetchCurrentOperasi(parseInt(idOperasi));
@@ -41,6 +45,7 @@ export const useOverlaysLeft = () => {
           source: item.keterangan,
         }));
         setDetectionData(converted);
+        setSelectedItem(null);
       } catch (error) {
         console.error("Gagal mengambil data:", error);
       }
