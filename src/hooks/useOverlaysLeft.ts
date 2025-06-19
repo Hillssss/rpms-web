@@ -20,16 +20,29 @@ export const useOverlaysLeft = () => {
   const [selectedItem, setSelectedItem] = useState<DetectionData | null>(null);
   const [detectionData, setDetectionData] = useState<DetectionData[]>([]);
 
-  const { idOperasi } = useOperasi(); // ambil dari context
+  const { idOperasi } = useOperasi();
 
+  // 1️⃣ Load dari localStorage
+  useEffect(() => {
+    const savedData = localStorage.getItem("detectionData");
+    const savedItem = localStorage.getItem("selectedItem");
+    if (savedData) {
+      setDetectionData(JSON.parse(savedData));
+      console.log("Load detectionData dari localStorage:", JSON.parse(savedData));
+    }
+    if (savedItem) {
+      setSelectedItem(JSON.parse(savedItem));
+      console.log("Load selectedItem dari localStorage:", JSON.parse(savedItem));
+    }
+  }, []);
+
+  // 2️⃣ Hanya fetch dari API kalau idOperasi memang ADA
   useEffect(() => {
     const fetchData = async () => {
       if (!idOperasi) {
-        setSelectedItem(null);
-        setDetectionData([]);
+        // ✅ Jika tidak ada idOperasi, JANGAN reset detectionData
         return;
       }
-
       try {
         const result = await fetchCurrentOperasi(parseInt(idOperasi));
         const converted: DetectionData[] = result.deteksi.map((item: any) => ({
@@ -44,15 +57,28 @@ export const useOverlaysLeft = () => {
           id_radar: item.id_radar,
           source: item.keterangan,
         }));
+
         setDetectionData(converted);
         setSelectedItem(null);
       } catch (error) {
         console.error("Gagal mengambil data:", error);
       }
     };
-
     fetchData();
-  }, [idOperasi]); // rerun kalau ID berubah
+  }, [idOperasi]);
+
+  // 3️⃣ Simpan ke localStorage
+  useEffect(() => {
+    if (detectionData.length > 0) {
+      localStorage.setItem("detectionData", JSON.stringify(detectionData));
+    }
+  }, [detectionData]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      localStorage.setItem("selectedItem", JSON.stringify(selectedItem));
+    }
+  }, [selectedItem]);
 
   return {
     showOdsContent,
