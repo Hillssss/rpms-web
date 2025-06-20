@@ -39,5 +39,15 @@ export const fetchCurrentOperasi = async (id_operasi: number) => {
   }
 };
 
+export const fetchKoneksiState = async (): Promise<boolean> => {
+  try {
+    const res = await API.post("/api/operasi/connect/state");
+    return res.data?.data === true;
+  } catch (error) {
+    console.error("Gagal cek koneksi:", error);
+    return false;
+  }
+};
+
 
 export default API;

@@ -92,8 +92,6 @@ html, body {
   overflow: hidden;
 }
 
-
-
 @layer base {
   * {
     @apply border-border;

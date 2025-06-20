@@ -13,11 +13,29 @@ import { useOperasi } from "@/contexts/OperasiContext";
 
 const ContentMap = () => {
   
-  const {namaOperasi, setOperasi } = useOperasi();
+   const {
+  namaOperasi,
+  inputRadar,
+  inputGunshot,
+  setInputRadar,
+  setInputGunshot,
+  setOperasi,
+} = useOperasi();
 
-  const handleChange = (type: "radar" | "gunshot", field: string, value: string) => {
-  const numeric = value.replace(/[^\d.-]/g, ""); // filter non-numeric
-  setOperasi({ [type]: { [field]: numeric } });
+ const handleChange = (field: keyof typeof inputRadar, value: string) => {
+    const numeric = value.replace(/[^\d.-]/g, "");
+    setInputRadar({
+      ...inputRadar,
+      [field]: numeric,
+    });
+  };
+
+  const handleChangeGunshot = (field: keyof typeof inputGunshot, value: string) => {
+  const numeric = value.replace(/[^\d.-]/g, "");
+  setInputGunshot({
+    ...inputGunshot,
+    [field]: numeric,
+  });
 };
 
     return(
@@ -92,14 +110,14 @@ const ContentMap = () => {
         <div key={label}>
           <label className="block text-black mb-2 text-sm text-center">{label}</label>
          <Input
-            type="text"
-            inputMode="decimal"
-            className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
-            onChange={(e) => {
-              const onlyNumbers = e.target.value.replace(/[^\d.-]/g, "");
-              handleChange("radar", label.toLowerCase(), onlyNumbers);
-            }}
-          />
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
+                    value={inputRadar[label.toLowerCase() as keyof typeof inputRadar] || ""}
+                    onChange={(e) =>
+                      handleChange(label.toLowerCase() as keyof typeof inputRadar, e.target.value)
+                    }
+                  />
 
         </div>
       ))}
@@ -110,15 +128,15 @@ const ContentMap = () => {
       {["Latitude", "Longitude", "Altitude"].map((label) => (
         <div key={`gun-${label}`}>
           <label className="block text-black mb-2 text-sm text-center">{label}</label>
-          <Input
-            type="text"
-            inputMode="decimal"
-            className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
-            onChange={(e) => {
-              const onlyNumbers = e.target.value.replace(/[^\d.-]/g, "");
-              handleChange("gunshot", label.toLowerCase(), onlyNumbers);
-            }}
-          />
+           <Input
+        type="text"
+        inputMode="decimal"
+        className="w-full bg-[#2d3748] border-gray-700 text-white text-center"
+        value={inputGunshot[label.toLowerCase() as keyof typeof inputGunshot] || ""}
+        onChange={(e) =>
+          handleChangeGunshot(label.toLowerCase() as keyof typeof inputGunshot, e.target.value)
+        }
+      />
         </div>
       ))}
     </div>

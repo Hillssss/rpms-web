@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { pindahOperasi, fetchCurrentOperasi } from "@/lib/api";
 import { useOperasi } from "@/contexts/OperasiContext";
 import { useDeteksi } from "@/contexts/DeteksiContext";
@@ -23,8 +23,11 @@ const usePilihOperasi = (onSuccess?: () => void) => {
   const [selectingId, setSelectingId] = useState<number | null>(null);
   const { setOperasi, setStarted } = useOperasi();
   const { setDeteksi } = useDeteksi(); // ✅ ganti dari setDataDeteksi ke setDeteksi
+  const effectRan = useRef(false); // Tambahkan ini
 
   const handlePilihOperasi = async (item: OperasiItem) => {
+      if (effectRan.current) return; // Tambahkan pengecekan
+    effectRan.current = true;
     setSelectingId(item.id_operasi);
     try {
       await pindahOperasi(item.id_operasi);

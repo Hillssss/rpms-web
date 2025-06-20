@@ -5,23 +5,43 @@ import { startOperasi, pindahOperasi } from "@/lib/api";
 import { toast } from "sonner";
 
 export const useOperasiSubmit = (onSuccess?: () => void) => {
-  const { namaOperasi, radar, gunshot, setOperasi, setStarted, setActivate } = useOperasi();
+  const {
+    namaOperasi,
+    inputRadar,
+    inputGunshot,
+    setOperasi,
+    setStarted,
+    setActivate,
+    setInputRadar,
+    setInputGunshot,
+  } = useOperasi();
+
+  
 
   const handleSubmit = async () => {
-    if (!namaOperasi || namaOperasi.trim() === "") {
-     toast.error("NAMA OPERASI KOSONG", {
-        description: "Silakan isi nama operasi sebelum melanjutkan.",
-      });
+    if (
+      !inputRadar.latitude ||
+      !inputRadar.longitude ||
+      !namaOperasi.trim()
+    ) {
+      toast.error("Harap lengkapi nama operasi dan koordinat radar");
       return;
     }
+
+    // Simpan input manual ke state utama
+    setOperasi({
+      radar: inputRadar,
+      gunshot: inputGunshot,
+      namaOperasi,
+    });
 
     console.log("[Submit] Mulai membuat operasi...");
 
     try {
       const response = await startOperasi({
         nama_operasi: namaOperasi,
-        radar,
-        gunshot,
+        radar: inputRadar,
+        gunshot: inputGunshot,
       });
 
       console.log("[Submit] Response dari startOperasi:", response);
@@ -38,9 +58,7 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
         });
 
         setStarted(true);
-        
 
-        // 🔥 Kirim ke endpoint pindahOperasi
         console.log("[Submit] Mengirim ke endpoint pindahOperasi...");
         const pindahRes = await pindahOperasi(data.id_operasi);
 
@@ -49,11 +67,16 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
         if (pindahRes?.data?.data === true) {
           setActivate(true);
           toast.success(pindahRes.data.message || "Operasi berhasil diaktifkan");
+
+          // ✅ Reset input manual setelah berhasil
+          setInputRadar({ latitude: "", longitude: "", altitude: "" });
+          setInputGunshot({ latitude: "", longitude: "", altitude: "" });
+          setOperasi({ namaOperasi: "" });
+
+          onSuccess?.();
         } else {
           toast.error("Gagal mengaktifkan operasi.");
         }
-
-        onSuccess?.();
       } else {
         toast.error("Gagal mengambil ID operasi dari response.");
       }
@@ -65,3 +88,4 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
 
   return { handleSubmit };
 };
+

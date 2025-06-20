@@ -118,6 +118,7 @@ export const useMapBox = () => {
       return () => clearTimeout(timeout);
     }
   }, [isStarted, isValidCoordinate, latitude, longitude]);
+  console.log("[useMapBox] isStarted:", isStarted, "radar:", latitude, longitude);
 
   // Wavecircle animation only when connected
   useEffect(() => {

@@ -1,5 +1,5 @@
 // hooks/useRiwayatOperasi.ts
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchRiwayatOperasi } from "@/lib/api";
 
 type OperasiItem = {
@@ -33,8 +33,11 @@ const formatUnixToDateTime = (unix: number) => {
 const useRiwayatOperasi = () => {
   const [data, setData] = useState<OperasiItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const effectRan = useRef(false); // Tambahkan ini
 
   useEffect(() => {
+    if (effectRan.current) return; // Tambahkan pengecekan
+    effectRan.current = true;
     const getRiwayat = async () => {
       try {
         const res = await fetchRiwayatOperasi();
