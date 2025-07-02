@@ -36,6 +36,7 @@ export const useMapBox = () => {
     }
   };
 
+  
   const [waveCircle, setWaveCircle] = useState<FeatureCollection | null>(null);
 
   const radiusArray = useMemo(() => [25, 50, 75, 100, 250, 500, 750, 1000, 1500, 2000, 3000], []);

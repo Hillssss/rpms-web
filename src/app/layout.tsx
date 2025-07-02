@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   description: "RPMS",
 };
 
+
 export default function RootLayout({
   children,
 }: {
@@ -32,7 +33,7 @@ export default function RootLayout({
         <Toaster richColors position="top-center"
          />
         <Header />
-        <main className="flex-1 pt-[96px] overflow-hidden">{children}</main>
+        <main className="flex-1 pt-[96px] overflow-auto">{children}</main>
         </DeteksiProvider>
         </OperasiProvider>
         </MapProvider>

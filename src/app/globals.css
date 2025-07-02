@@ -90,6 +90,8 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+   overscroll-behavior: contain;
+  touch-action: pan-x pan-y; /* penting untuk Mapbox gesture */
 }
 
 @layer base {

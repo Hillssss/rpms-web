@@ -20,7 +20,7 @@ const OverlaysLeft = () => {
   return (
     <>
       {/* Status ODS */}
-      <div className="absolute top-4 left-4 w-[320px] z-20">
+      <div className="absolute top-4 left-4 w-[280px] z-20">
         <div className="bg-gray-400 rounded-md p-3 flex items-center space-x-3 justify-center">
           <div className="bg-white rounded-full p-2 flex-shrink-0">
             <FaBroadcastTower
@@ -38,15 +38,15 @@ const OverlaysLeft = () => {
       </div>
 
       {/* Main Container */}
-      <div className="absolute top-24 left-4 w-[320px] bg-black/80 text-white rounded-md p-2 z-10 space-y-2 mt-2">
+      <div className="absolute top-24 left-4 w-[280px] bg-black/80 text-white rounded-md p-2 z-10 space-y-2 mt-2">
         <button
           onClick={() => setShowOdsContent(!showOdsContent)}
-          className="w-full relative bg-[#2e2e4e] text-sm font-bold py-1 rounded flex items-center justify-end px-2"
+          className="w-full relative bg-[#2e2e4e] text-sm font-bold py-1 rounded flex items-center justify-center px-2"
         >
-          <span className="absolute left-1/2 -translate-x-1/2">
-            DATA DETEKSI ODS ({detectionData.length})
-          </span>
-          {showOdsContent ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <span>DATA DETEKSI ODS ({detectionData.length})</span>
+          <div className="absolute right-2">
+            {showOdsContent ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
         </button>
 
         {showOdsContent && (
