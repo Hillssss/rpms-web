@@ -4,6 +4,8 @@ import {
   connectOperasi,
   disconnectOperasi,
   selesaiOperasi,
+  startGunshot, 
+  stopGunshot
 } from "@/lib/api";
 import { useOperasi } from "@/contexts/OperasiContext";
 import { toast } from "sonner";
@@ -32,12 +34,14 @@ export const useRadarConnect = () => {
       if (!isConnected) {
         const res = await connectOperasi(radar.latitude, radar.longitude);
         if (res.status === 200) {
+          await startGunshot();
           setConnected(true);
           
         }
       } else {
         const res = await disconnectOperasi();
         if (res.status === 200) {
+           await stopGunshot();
           setConnected(false);    
           setStarted(false);      
          

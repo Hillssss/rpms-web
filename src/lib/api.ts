@@ -32,10 +32,13 @@ export const pindahOperasi = (id_operasi: string | number) =>
 export const fetchCurrentOperasi = async (id_operasi: number) => {
   try {
     const res = await API.post(`/api/operasi/current?id_operasi=${id_operasi}`);
-    return res.data.data;
+    return {
+      deteksi: res.data.data?.deteksi || [],
+      status: res.data.status || 'unknown'
+    };
   } catch (error) {
-    console.error(error);
-    throw new Error("Gagal mengambil data operasi");
+    console.error('Fetch operasi error:', error);
+    return { deteksi: [], status: 'error' }; // Struktur konsisten
   }
 };
 
@@ -48,6 +51,27 @@ export const fetchKoneksiState = async (): Promise<boolean> => {
     return false;
   }
 };
+
+export const startGunshot = async () => {
+  try {
+    const res = await API.post("/api/operasi/gunshot/start");
+    return res.data.data;
+  } catch (error) {
+    console.error("Gagal start gunshot:", error);
+    throw new Error("Gagal memulai gunshot");
+  }
+};
+
+export const stopGunshot = async () => {
+  try {
+    const res = await API.post("/api/operasi/gunshot/stop");
+    return res.data.data;
+  } catch (error) {
+    console.error("Gagal stop gunshot:", error);
+    throw new Error("Gagal berhenti gunshot");
+  }
+};
+
 
 
 export default API;

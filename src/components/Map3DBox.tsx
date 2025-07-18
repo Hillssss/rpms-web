@@ -4,13 +4,13 @@ import { Map, Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { GiRadarDish } from "react-icons/gi";
 import { useMapBox } from "@/hooks/useMapBox";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type MapBoxProps = {
   onClickCoordinate?: (coord: { lat: number; lng: number }) => void;
 };
 
-const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
+const Map3DBox = ({ onClickCoordinate }: MapBoxProps) => {
   const {
     mapRef,
     isConnected,
@@ -19,22 +19,67 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
     latitude,
     waveCircle,
     geojsonData,
-    gunshotSector, // ✅ tambahkan gunshot sector
     handleMarkerClick,
     DARK_YELLOW,
   } = useMapBox();
 
   const [clickedLatLng, setClickedLatLng] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Tambahkan terrain + layer bangunan 3D setelah map load
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    map.on("load", () => {
+      // 1. Tambahkan source terrain
+      if (!map.getSource("mapbox-dem")) {
+        map.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.terrain-rgb",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+        map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+      }
+
+      // 2. Tambahkan 3D buildings
+      if (!map.getLayer("3d-buildings")) {
+        map.addLayer(
+          {
+            id: "3d-buildings",
+            source: "composite",
+            "source-layer": "building",
+            filter: ["==", "extrude", "true"],
+            type: "fill-extrusion",
+            minzoom: 15,
+            paint: {
+              "fill-extrusion-color": "#aaa",
+              "fill-extrusion-height": ["get", "height"],
+              "fill-extrusion-base": ["get", "min_height"],
+              "fill-extrusion-opacity": 0.6,
+            },
+          },
+          "waterway-label" // letakkan sebelum label air supaya 3D muncul di bawah teks
+        );
+      }
+    });
+  }, [mapRef]);
+
   return (
     <div className="w-full h-full">
       <Map
         ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-        initialViewState={{ longitude, latitude, zoom: 10 }}
+        initialViewState={{
+          longitude,
+          latitude,
+          zoom: 15,
+          pitch: 60,
+          bearing: -17,
+        }}
         minZoom={3}
         maxZoom={20}
-        mapStyle="mapbox://styles/mapbox/satellite-v9"
+        mapStyle="mapbox://styles/mapbox/standard"
         style={{ width: "100%", height: "100%" }}
         scrollZoom={true}
         dragPan={true}
@@ -49,7 +94,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
       >
         {isStarted && (
           <>
-            {/* 📡 Marker Radar */}
+            {/* Marker Radar */}
             <Marker
               longitude={longitude}
               latitude={latitude}
@@ -61,7 +106,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
               </div>
             </Marker>
 
-            {/* 🌊 Wavecircle */}
+            {/* Gelombang hanya saat Connected */}
             {isConnected && waveCircle && (
               <Source id="wave-circle" type="geojson" data={waveCircle}>
                 <Layer
@@ -84,31 +129,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
               </Source>
             )}
 
-          {/* 🔥 Gunshot Sector Merah */}
-          {isConnected && gunshotSector && (
-            <Source id="gunshot-sector" type="geojson" data={gunshotSector}>
-              <Layer
-                id="gunshot-sector-fill"
-                type="fill"
-                paint={{
-                  "fill-color": "#FF0000",
-                  "fill-opacity": ["get", "opacity"],
-                }}
-              />
-              <Layer
-                id="gunshot-sector-outline"
-                type="line"
-                paint={{
-                  "line-color": "#FF0000",
-                  "line-width": 1,
-                  "line-opacity": 0.8,
-                }}
-              />
-            </Source>
-          )}
-
-
-            {/* 🟡 Radar: Sektor, Lingkaran, dan Label */}
+            {/* Lingkaran, sektor, dan label radar */}
             {geojsonData && (
               <>
                 <Source id="radar-sectors" type="geojson" data={geojsonData.sectors}>
@@ -161,4 +182,4 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
   );
 };
 
-export default MapBox;
+export default Map3DBox;

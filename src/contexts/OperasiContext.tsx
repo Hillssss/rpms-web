@@ -24,6 +24,8 @@ type OperasiState = {
   setInputRadar: (data: Koordinat) => void;
   inputGunshot: Koordinat;
   setInputGunshot: (data: Koordinat) => void;
+  refreshValue: boolean,
+  setRefreshValue: (value: boolean) => void
 };
 
 const defaultState: OperasiState = {
@@ -42,6 +44,8 @@ const defaultState: OperasiState = {
   setInputRadar: () => {},
   inputGunshot: { latitude: "", longitude: "", altitude: "" },
   setInputGunshot: () => {},
+  refreshValue: false,
+  setRefreshValue: () => {}
 };
 
 const OperasiContext = createContext<OperasiState>(defaultState);
@@ -61,6 +65,8 @@ const getInitialState = (): Omit<
   | "setInputRadar"
   | "inputGunshot"
   | "setInputGunshot"
+  | "refreshValue"
+  | "setRefreshValue"
 > => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("operasiState");
@@ -83,6 +89,7 @@ const getInitialState = (): Omit<
 
 export const OperasiProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState(getInitialState);
+  const [refreshValue, setRefreshValue] = useState(false);
 
   const [isStarted, setStarted] = useState(() => {
     if (typeof window !== "undefined") {
@@ -149,6 +156,8 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
       | "setInputRadar"
       | "inputGunshot"
       | "setInputGunshot"
+      | "refreshValue"
+      | "setRefreshValue"
     >>
   ) => {
     setState((prev) => ({
@@ -207,6 +216,8 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
         setInputRadar,
         inputGunshot,
         setInputGunshot,
+        refreshValue,
+        setRefreshValue
       }}
     >
       {children}

@@ -7,6 +7,9 @@ import type { FeatureCollection } from "geojson";
 import { useOperasi } from "@/contexts/OperasiContext";
 import { toast } from "sonner";
 
+// 🔥 Gunshot MQTT
+import { useGunshotMQTT } from "@/hooks/useGunshotMQTT";
+
 const RADIUS_COLORS = {
   SMALL: "#FF0000",
   MEDIUM: "#FFFF00",
@@ -18,6 +21,8 @@ const DARK_YELLOW = "#D6C90C";
 export const useMapBox = () => {
   const mapRef = useRef<MapRef>(null);
   const { radar, isConnected, isStarted } = useOperasi();
+  const { gunshot, resetGunshot } = useGunshotMQTT();
+
 
   const latitude = Number(radar.latitude);
   const longitude = Number(radar.longitude);
@@ -36,75 +41,111 @@ export const useMapBox = () => {
     }
   };
 
-  
   const [waveCircle, setWaveCircle] = useState<FeatureCollection | null>(null);
+  const [gunshotSector, setGunshotSector] = useState<FeatureCollection | null>(null); // 🔥
 
   const radiusArray = useMemo(() => [25, 50, 75, 100, 250, 500, 750, 1000, 1500, 2000, 3000], []);
 
   const geojsonData = useMemo(() => {
-  if (!isValidCoordinate || !isStarted) return null;
+    if (!isValidCoordinate || !isStarted) return null;
 
-  const circleFeatures = radiusArray.map((radius) => {
-    const circle = turf.circle([longitude, latitude], radius / 1000, {
-      steps: 64,
-      units: "kilometers",
-    });
-
-    let color = RADIUS_COLORS.LARGE;
-    if (radius <= 100) color = RADIUS_COLORS.SMALL;
-    else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
-
-    circle.properties = { color };
-    return circle;
-  });
-
-  const sectorFeatures = radiusArray.map((radius) => {
-    const sector = turf.sector([longitude, latitude], radius / 1000, -22.5, 22.5, {
-      steps: 64,
-      units: "kilometers",
-    });
-
-    let color = RADIUS_COLORS.LARGE;
-    if (radius <= 100) color = RADIUS_COLORS.SMALL;
-    else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
-
-    sector.properties = { color };
-    return sector;
-  });
-
-  const bearings = [0, 90, 180, 270];
-  const labelFeatures = radiusArray.flatMap((radius) =>
-    bearings.map((bearing) => {
-      const labelPoint = turf.destination([longitude, latitude], radius / 1000, bearing, {
+    const circleFeatures = radiusArray.map((radius) => {
+      const circle = turf.circle([longitude, latitude], radius / 1000, {
+        steps: 64,
         units: "kilometers",
       });
 
-      labelPoint.properties = {
-        label: radius >= 1000 ? `${radius / 1000} km` : `${radius} m`,
-      };
+      let color = RADIUS_COLORS.LARGE;
+      if (radius <= 100) color = RADIUS_COLORS.SMALL;
+      else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
 
-      return labelPoint;
-    })
+      circle.properties = { color };
+      return circle;
+    });
+
+    const sectorFeatures = radiusArray.map((radius) => {
+      const sector = turf.sector([longitude, latitude], radius / 1000, -22.5, 22.5, {
+        steps: 64,
+        units: "kilometers",
+      });
+
+      let color = RADIUS_COLORS.LARGE;
+      if (radius <= 100) color = RADIUS_COLORS.SMALL;
+      else if (radius <= 750) color = RADIUS_COLORS.MEDIUM;
+
+      sector.properties = { color };
+      return sector;
+    });
+
+    const bearings = [0, 90, 180, 270];
+    const labelFeatures = radiusArray.flatMap((radius) =>
+      bearings.map((bearing) => {
+        const labelPoint = turf.destination([longitude, latitude], radius / 1000, bearing, {
+          units: "kilometers",
+        });
+
+        labelPoint.properties = {
+          label: radius >= 1000 ? `${radius / 1000} km` : `${radius} m`,
+        };
+
+        return labelPoint;
+      })
+    );
+
+    return {
+      circles: {
+        type: "FeatureCollection",
+        features: circleFeatures,
+      },
+      sectors: {
+        type: "FeatureCollection",
+        features: sectorFeatures,
+      },
+      labels: {
+        type: "FeatureCollection",
+        features: labelFeatures,
+      },
+    };
+  }, [latitude, longitude, radiusArray, isStarted, isValidCoordinate]);
+
+  // 🔥 Gunshot Sector Generator
+ // 🔥 Gunshot Sector Generator (muncul hanya kalau sudah connect)
+useEffect(() => {
+  if (!gunshot || !isValidCoordinate || !isConnected) return; // <== tambahin isConnected
+
+  const angle = gunshot.direction;
+  const width = 15; // ± sudut dari arah
+  const radius = 3; // km jangkauan sector
+
+  const sector = turf.sector(
+    [longitude, latitude],
+    radius,
+    angle - width,
+    angle + width,
+    {
+      steps: 64,
+      units: "kilometers",
+    }
   );
 
-  return {
-    circles: {
-      type: "FeatureCollection",
-      features: circleFeatures,
-    },
-    sectors: {
-      type: "FeatureCollection",
-      features: sectorFeatures,
-    },
-    labels: {
-      type: "FeatureCollection",
-      features: labelFeatures,
-    },
+  sector.properties = {
+    color: "#FF0000",
+    opacity: 0.5,
   };
-}, [latitude, longitude, radiusArray, isStarted, isValidCoordinate]);
+
+  setGunshotSector({
+    type: "FeatureCollection",
+    features: [sector],
+  });
+
+  const timeout = setTimeout(() => {
+    setGunshotSector(null);
+  }, 4000);
+
+  return () => clearTimeout(timeout);
+}, [gunshot, isValidCoordinate, latitude, longitude, isConnected]);
 
 
-  // Fly to radar location once operasi is started
   useEffect(() => {
     if (isStarted && isValidCoordinate && mapRef.current) {
       const timeout = setTimeout(() => {
@@ -119,9 +160,7 @@ export const useMapBox = () => {
       return () => clearTimeout(timeout);
     }
   }, [isStarted, isValidCoordinate, latitude, longitude]);
-  console.log("[useMapBox] isStarted:", isStarted, "radar:", latitude, longitude);
 
-  // Wavecircle animation only when connected
   useEffect(() => {
     if (!isConnected || !isValidCoordinate) {
       setWaveCircle(null);
@@ -157,26 +196,35 @@ export const useMapBox = () => {
   }, [latitude, longitude, isConnected, isValidCoordinate]);
 
   useEffect(() => {
-    const latStr = radar.latitude.trim();
-    const lonStr = radar.longitude.trim();
+  const latStr = radar.latitude.trim();
+  const lonStr = radar.longitude.trim();
 
-    const isLatTyping = /^-?\d*\.?\d*$/.test(latStr);
-    const isLonTyping = /^-?\d*\.?\d*$/.test(lonStr);
+  const isLatTyping = /^-?\d*\.?\d*$/.test(latStr);
+  const isLonTyping = /^-?\d*\.?\d*$/.test(lonStr);
 
-    if (!isValidCoordinate && !isLatTyping && !isLonTyping) {
-      toast.error("Koordinat tidak valid");
-    }
-  }, [radar.latitude, radar.longitude, isValidCoordinate]);
+  if (!isValidCoordinate && !isLatTyping && !isLonTyping) {
+    toast.error("Koordinat tidak valid");
+  }
+}, [radar.latitude, radar.longitude, isValidCoordinate]);
 
-  return {
-    mapRef,
-    isConnected,
-    isStarted,
-    longitude,
-    latitude,
-    waveCircle,
-    geojsonData,
-    handleMarkerClick,
-    DARK_YELLOW,
-  };
+useEffect(() => {
+  if (!isStarted || !isConnected) {
+    setGunshotSector(null);
+    resetGunshot();
+  }
+}, [isStarted, isConnected, resetGunshot]); // ✅ sekarang aman dari warning
+
+
+return {
+  mapRef,
+  isConnected,
+  isStarted,
+  longitude,
+  latitude,
+  waveCircle,
+  geojsonData,
+  handleMarkerClick,
+  DARK_YELLOW,
+  gunshotSector,
+};
 };
