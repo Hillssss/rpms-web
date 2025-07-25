@@ -59,7 +59,7 @@ const MobileNav = () => {
               {isLoading
                 ? "Loading..."
                 : !isOperasiSiap
-                ? "Start Required"
+                ? "Select Operasi First"
                 : isConnected
                 ? "Disconnect"
                 : "Connect"}

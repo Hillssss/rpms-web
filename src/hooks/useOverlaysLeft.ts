@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchCurrentOperasi } from "@/lib/api";
 import { useOperasi,} from "@/contexts/OperasiContext";
 import { useGunshotMQTT } from "./useGunshotMQTT";
+import { useMqtt } from "@/contexts/MqttContext"; // ✅
 
 interface DetectionData {
   id: number;
@@ -26,9 +27,10 @@ export const useOverlaysLeft = () => {
   const [gunshotData, setGunshotData] = useState<DetectionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { refreshSignal } = useMqtt(); // ✅
 
 
-  const { idOperasi, refreshValue, setRefreshValue} = useOperasi();
+  const { idOperasi} = useOperasi();
   const { gunshot: mqttGunshot, resetGunshot, isConnected } = useGunshotMQTT();
 
   // Refs untuk tracking data yang sudah diproses
@@ -150,9 +152,12 @@ export const useOverlaysLeft = () => {
   }, [loadDataFromAPI]);
 
   // Effect untuk load data awal
-  useEffect(() => {
-    loadDataFromAPI();
-  }, [loadDataFromAPI, refreshValue, setRefreshValue]);
+ useEffect(() => {
+  if (!refreshSignal) return;
+
+  console.log("[MQTT] Refresh signal received");
+  loadDataFromAPI(); // ✅ Refetch data
+}, [refreshSignal, loadDataFromAPI]);
 
   // Effect untuk data MQTT real-time
   useEffect(() => {

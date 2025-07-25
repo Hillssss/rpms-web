@@ -19,19 +19,27 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
     latitude,
     waveCircle,
     geojsonData,
-    gunshotSector, // ✅ tambahkan gunshot sector
+    gunshotSector,
     handleMarkerClick,
     DARK_YELLOW,
   } = useMapBox();
 
   const [clickedLatLng, setClickedLatLng] = useState<{ lat: number; lng: number } | null>(null);
 
+  const isValidCoordinate =
+    isFinite(latitude) && !isNaN(latitude) && isFinite(longitude) && !isNaN(longitude);
+
   return (
     <div className="w-full h-full">
       <Map
         ref={mapRef}
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-        initialViewState={{ longitude, latitude, zoom: 10 }}
+        reuseMaps={true}
+        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""}
+        initialViewState={{
+          longitude: isValidCoordinate ? longitude : 107.6, // default fallback ke Bandung
+          latitude: isValidCoordinate ? latitude : -6.9,
+          zoom: 10,
+        }}
         minZoom={3}
         maxZoom={20}
         mapStyle="mapbox://styles/mapbox/satellite-v9"
@@ -44,12 +52,12 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
           const { lng, lat } = e.lngLat;
           const coords = { lat, lng };
           setClickedLatLng(coords);
-          onClickCoordinate?.(coords); // Kirim ke page.tsx
+          onClickCoordinate?.(coords);
         }}
       >
         {isStarted && (
           <>
-            {/* 📡 Marker Radar */}
+            {/* 📡 Radar Marker */}
             <Marker
               longitude={longitude}
               latitude={latitude}
@@ -61,7 +69,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
               </div>
             </Marker>
 
-            {/* 🌊 Wavecircle */}
+            {/* 🌊 Radar Wave */}
             {isConnected && waveCircle && (
               <Source id="wave-circle" type="geojson" data={waveCircle}>
                 <Layer
@@ -84,33 +92,33 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
               </Source>
             )}
 
-          {/* 🔥 Gunshot Sector Merah */}
-          {isConnected && gunshotSector && (
-            <Source id="gunshot-sector" type="geojson" data={gunshotSector}>
-              <Layer
-                id="gunshot-sector-fill"
-                type="fill"
-                paint={{
-                  "fill-color": "#FF0000",
-                  "fill-opacity": ["get", "opacity"],
-                }}
-              />
-              <Layer
-                id="gunshot-sector-outline"
-                type="line"
-                paint={{
-                  "line-color": "#FF0000",
-                  "line-width": 1,
-                  "line-opacity": 0.8,
-                }}
-              />
-            </Source>
-          )}
+            {/* 🔴 Gunshot Sector */}
+            {isConnected && gunshotSector && (
+              <Source id="gunshot-sector" type="geojson" data={gunshotSector}>
+                <Layer
+                  id="gunshot-sector-fill"
+                  type="fill"
+                  paint={{
+                    "fill-color": "#FF0000",
+                    "fill-opacity": ["get", "opacity"],
+                  }}
+                />
+                <Layer
+                  id="gunshot-sector-outline"
+                  type="line"
+                  paint={{
+                    "line-color": "#FF0000",
+                    "line-width": 1,
+                    "line-opacity": 0.8,
+                  }}
+                />
+              </Source>
+            )}
 
-
-            {/* 🟡 Radar: Sektor, Lingkaran, dan Label */}
+            {/* 🟡 Radar Rings & Labels */}
             {geojsonData && (
               <>
+                {/* Sektor */}
                 <Source id="radar-sectors" type="geojson" data={geojsonData.sectors}>
                   <Layer
                     id="radar-sector-fill"
@@ -122,6 +130,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
                   />
                 </Source>
 
+                {/* Lingkaran */}
                 <Source id="radar-circles" type="geojson" data={geojsonData.circles}>
                   <Layer
                     id="radar-outline"
@@ -133,6 +142,7 @@ const MapBox = ({ onClickCoordinate }: MapBoxProps) => {
                   />
                 </Source>
 
+                {/* Label */}
                 <Source id="radar-labels" type="geojson" data={geojsonData.labels}>
                   <Layer
                     id="radar-label-text"

@@ -1,6 +1,7 @@
 // hooks/useRiwayatOperasi.ts
 import { useEffect, useState, useRef } from "react";
 import { fetchRiwayatOperasi } from "@/lib/api";
+import { useMqtt } from "@/contexts/MqttContext";
 
 type OperasiItem = {
   id_operasi: number;
@@ -34,6 +35,7 @@ const useRiwayatOperasi = () => {
   const [data, setData] = useState<OperasiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const effectRan = useRef(false); // Tambahkan ini
+  const { refreshSignal } = useMqtt(); 
 
   useEffect(() => {
     if (effectRan.current) return; // Tambahkan pengecekan
@@ -51,7 +53,7 @@ const useRiwayatOperasi = () => {
     };
 
     getRiwayat();
-  }, []);
+  }, [refreshSignal]);
 
   return { data, loading, formatUnixToDateTime };
 };

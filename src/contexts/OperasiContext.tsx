@@ -1,6 +1,9 @@
 "use client";
-import { createContext, useContext, useEffect, useState, } from "react";
-import { fetchKoneksiState } from "@/lib/api"; // pastikan path ini benar
+import { createContext, useContext, useEffect, useState } from "react";
+import { fetchKoneksiState, fetchCurrentOperasi } from "@/lib/api";
+import { useMqtt } from "@/contexts/MqttContext";
+
+// Types
 
 type Koordinat = {
   latitude: string;
@@ -24,8 +27,6 @@ type OperasiState = {
   setInputRadar: (data: Koordinat) => void;
   inputGunshot: Koordinat;
   setInputGunshot: (data: Koordinat) => void;
-  refreshValue: boolean,
-  setRefreshValue: (value: boolean) => void
 };
 
 const defaultState: OperasiState = {
@@ -44,14 +45,11 @@ const defaultState: OperasiState = {
   setInputRadar: () => {},
   inputGunshot: { latitude: "", longitude: "", altitude: "" },
   setInputGunshot: () => {},
-  refreshValue: false,
-  setRefreshValue: () => {}
 };
 
 const OperasiContext = createContext<OperasiState>(defaultState);
 export const useOperasi = () => useContext(OperasiContext);
 
-// 🔁 Ambil data awal dari localStorage
 const getInitialState = (): Omit<
   OperasiState,
   | "setOperasi"
@@ -65,8 +63,6 @@ const getInitialState = (): Omit<
   | "setInputRadar"
   | "inputGunshot"
   | "setInputGunshot"
-  | "refreshValue"
-  | "setRefreshValue"
 > => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("operasiState");
@@ -89,58 +85,22 @@ const getInitialState = (): Omit<
 
 export const OperasiProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState(getInitialState);
-  const [refreshValue, setRefreshValue] = useState(false);
-
-  const [isStarted, setStarted] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("operasiState");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return parsed.isStarted || false;
-        } catch {}
-      }
-    }
-    return false;
-  });
-
-  const [isConnected, setConnected] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("operasiState");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return parsed.isConnected || false;
-        } catch {}
-      }
-    }
-    return false;
-  });
-
-  const [activate, setActivate] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("operasiState");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return parsed.activate || false;
-        } catch {}
-      }
-    }
-    return false;
-  });
+  const [isStarted, setStarted] = useState(false);
+  const [isConnected, setConnected] = useState(false);
+  const [activate, setActivate] = useState(false);
 
   const [inputRadar, setInputRadar] = useState<Koordinat>({
     latitude: "",
     longitude: "",
     altitude: "",
   });
-
   const [inputGunshot, setInputGunshot] = useState<Koordinat>({
     latitude: "",
     longitude: "",
     altitude: "",
   });
+
+  const { refreshSignal } = useMqtt();
 
   const setOperasi = (
     data: Partial<Omit<
@@ -156,8 +116,6 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
       | "setInputRadar"
       | "inputGunshot"
       | "setInputGunshot"
-      | "refreshValue"
-      | "setRefreshValue"
     >>
   ) => {
     setState((prev) => ({
@@ -168,7 +126,6 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
     }));
   };
 
-  // 💾 Simpan semua ke localStorage saat berubah
   useEffect(() => {
     const toSave = {
       ...state,
@@ -179,13 +136,11 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
     localStorage.setItem("operasiState", JSON.stringify(toSave));
   }, [state, isStarted, isConnected, activate]);
 
-  // 🌐 Sinkronisasi status koneksi dari server
   useEffect(() => {
     const syncConnectionState = async () => {
       const result = await fetchKoneksiState();
       setConnected(result);
 
-      // Simpan juga ke localStorage agar konsisten
       const saved = localStorage.getItem("operasiState");
       if (saved) {
         try {
@@ -200,6 +155,36 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
       syncConnectionState();
     }
   }, [isStarted]);
+
+  useEffect(() => {
+  if (!state.idOperasi) return;
+
+  const syncStatus = async () => {
+    const result = await fetchCurrentOperasi(Number(state.idOperasi));
+
+    const aktif = result.status === "success";
+    setStarted(aktif);
+
+    // ✅ TAMBAHKAN INI: update radar dan gunshot dari server
+    if (result.radar && result.gunshot) {
+      setOperasi({
+        radar: {
+          latitude: String(result.radar.latitude),
+          longitude: String(result.radar.longitude),
+          altitude: "",
+        },
+        gunshot: {
+          latitude: String(result.gunshot.latitude),
+          longitude: String(result.gunshot.longitude),
+          altitude: "",
+        },
+      });
+    }
+  };
+
+  syncStatus();
+}, [refreshSignal, state.idOperasi]);
+  
 
   return (
     <OperasiContext.Provider
@@ -216,8 +201,6 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
         setInputRadar,
         inputGunshot,
         setInputGunshot,
-        refreshValue,
-        setRefreshValue
       }}
     >
       {children}

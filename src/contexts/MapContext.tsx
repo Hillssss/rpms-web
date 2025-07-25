@@ -2,6 +2,7 @@
 import { createContext, useContext, useRef } from "react";
 import type { MapRef } from "react-map-gl";
 
+
 type MapContextType = {
   mapRef: React.MutableRefObject<MapRef | null>;
 };

@@ -5,6 +5,8 @@ import { pindahOperasi, fetchCurrentOperasi } from "@/lib/api";
 import { useOperasi } from "@/contexts/OperasiContext";
 import { useDeteksi } from "@/contexts/DeteksiContext";
 import { toast } from "sonner";
+import { useMqtt } from "@/contexts/MqttContext";
+
 
 type OperasiItem = {
   id_operasi: number;
@@ -24,6 +26,7 @@ const usePilihOperasi = (onSuccess?: () => void) => {
   const { setOperasi, setStarted } = useOperasi();
   const { setDeteksi } = useDeteksi(); // ✅ ganti dari setDataDeteksi ke setDeteksi
   const effectRan = useRef(false); // Tambahkan ini
+  const { triggerRefresh } = useMqtt();
 
   const handlePilihOperasi = async (item: OperasiItem) => {
       if (effectRan.current) return; // Tambahkan pengecekan
@@ -49,6 +52,7 @@ const usePilihOperasi = (onSuccess?: () => void) => {
       });
 
       setStarted(true);
+       triggerRefresh();
 
       // ✅ Ambil data deteksi dari API dan update context
       const result = await fetchCurrentOperasi(item.id_operasi);
@@ -61,6 +65,7 @@ const usePilihOperasi = (onSuccess?: () => void) => {
       toast.error("Gagal memilih operasi");
     } finally {
       setSelectingId(null);
+       effectRan.current = false;
     }
   };
 

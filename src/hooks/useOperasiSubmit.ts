@@ -1,8 +1,9 @@
 "use client";
 
 import { useOperasi } from "../contexts/OperasiContext";
-import { startOperasi, pindahOperasi } from "@/lib/api";
+import { startOperasi, pindahOperasi, fetchCurrentOperasi } from "@/lib/api";
 import { toast } from "sonner";
+import { useMqtt } from "@/contexts/MqttContext";
 
 export const useOperasiSubmit = (onSuccess?: () => void) => {
   const {
@@ -16,6 +17,7 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
     setInputGunshot,
   } = useOperasi();
 
+  const { triggerRefresh } = useMqtt(); // ✅ Tambahkan ini
   
 
   const handleSubmit = async () => {
@@ -55,9 +57,12 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
         setOperasi({
           idOperasi: String(data.id_operasi),
           activate: data.activate ?? false,
+          radar: inputRadar,
+          gunshot: inputGunshot,
         });
 
         setStarted(true);
+        triggerRefresh(); // 🟢 Agar Map langsung plot
 
         console.log("[Submit] Mengirim ke endpoint pindahOperasi...");
         const pindahRes = await pindahOperasi(data.id_operasi);
@@ -66,6 +71,7 @@ export const useOperasiSubmit = (onSuccess?: () => void) => {
 
         if (pindahRes?.data?.data === true) {
           setActivate(true);
+          triggerRefresh()
           toast.success(pindahRes.data.message || "Operasi berhasil diaktifkan");
 
           // ✅ Reset input manual setelah berhasil

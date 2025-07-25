@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { OperasiProvider } from "@/contexts/OperasiContext";
 import { MapProvider } from "@/contexts/MapContext";
 import { DeteksiProvider } from "@/contexts/DeteksiContext";
+import { MqttProvider } from "@/contexts/MqttContext";
 
 const baiJamjuree = Bai_Jamjuree({
   subsets: ["latin"],
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="h-full flex flex-col bg-accent">
+        <MqttProvider>
         <MapProvider>
            <OperasiProvider>
             <DeteksiProvider>
@@ -37,6 +39,7 @@ export default function RootLayout({
         </DeteksiProvider>
         </OperasiProvider>
         </MapProvider>
+        </MqttProvider>
       </body>
     </html>
   );

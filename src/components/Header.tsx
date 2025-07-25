@@ -6,14 +6,21 @@ import MobileNav from "./MobileNav";
 import ModalSettings from "./ModalSettings";
 import { useRadarConnect } from "@/hooks/useRadarConnect";
 import { useEffect, useState } from "react";
+import { useMqtt } from "@/contexts/MqttContext";
+
 
 const Header = () => {
   const { isConnected, isOperasiSiap, isLoading, toggleConnection } = useRadarConnect();
   const [isClient, setIsClient] = useState(false);
+   const { refreshSignal } = useMqtt();
 
     useEffect(() => {
+       if (refreshSignal) {
+      console.log("🚀 Data di-refresh karena MQTT trigger");
+      // Refetch data, reload komponen, dsb
+    }
       setIsClient(true);
-    }, []);
+    }, [refreshSignal]);
 
   return (
     <header className="absolute top-0 left-0 w-full py-5 xl:py-4 text-white z-50 bg-primary">
@@ -51,7 +58,7 @@ const Header = () => {
               {isLoading
                 ? "Loading..."
                 : !isOperasiSiap
-                ? "Start Required"
+                ? "Select Operasi First"
                 : isConnected
                 ? "Disconnect"
                 : "Connect"}

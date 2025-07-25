@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+"use client";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mqtt, { MqttClient } from "mqtt";
-import { useOperasi,} from "@/contexts/OperasiContext";
 
 export interface GunshotData {
   action: string;
@@ -9,12 +9,23 @@ export interface GunshotData {
   created_at: number;
 }
 
-export const useGunshotMQTT = () => {
+export const useGunshotMQTT = (onRefresh?: () => void) => {
   const clientRef = useRef<MqttClient | null>(null);
   const [gunshot, setGunshot] = useState<GunshotData | null>(null);
-  const resetGunshot = () => setGunshot(null); // 🔥 Tambahkan ini
+  const resetGunshot = () => setGunshot(null);
   const [isConnected, setIsConnected] = useState(false);
-   const {refreshValue, setRefreshValue} = useOperasi();
+   const [refreshSignal, setRefreshSignal] = useState<number | null>(null);
+  // ⬇️ simpan onRefresh di ref supaya gak perlu masuk array dependency
+  const onRefreshRef = useRef(onRefresh);
+
+  const triggerRefresh = useCallback(() => {
+    setRefreshSignal(Date.now()); // ubah timestamp untuk memicu useEffect
+  }, []);
+
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     let client: MqttClient;
@@ -29,34 +40,34 @@ export const useGunshotMQTT = () => {
     };
 
     const connectMQTT = () => {
-      client = mqtt.connect('ws://192.168.0.188', options);
+      client = mqtt.connect('ws://192.168.1.50', options);
       console.log('[MQTT] Attempting Gunshot MQTT connection...');
-
       clientRef.current = client;
 
       client.on('connect', () => {
         console.log('[MQTT] Connected to Gunshot MQTT');
         setIsConnected(true);
-        clientRef.current?.subscribe('rpms/direction');
+        client.subscribe('rpms/direction');
+        client.subscribe('rpms/logs');
       });
 
       client.on('message', (topic, message) => {
-        console.log(`[MQTT] Message on ${topic}:`, message.toString());
+        const msg = message.toString();
+        console.log(`[MQTT] Message on ${topic}:`, msg);
+
         if (topic === 'rpms/direction') {
           try {
-            const data: GunshotData = JSON.parse(message.toString());
+            const data: GunshotData = JSON.parse(msg);
             setGunshot(data);
           } catch (err) {
             console.error('[MQTT] Failed to parse gunshot message:', err);
           }
-        } else if (topic === "rpms/logs") {
+        } else if (topic === 'rpms/logs') {
           try {
-            const data = JSON.parse(message.toString());
-            if (data.data) {
-              setRefreshValue(!refreshValue)
-            }
+            setRefreshSignal(Date.now()); // pakai timestamp
+            if (onRefreshRef.current) onRefreshRef.current(); // trigger onRefresh
           } catch (err) {
-            console.error('[MQTT] Failed to parse gunshot message:', err);
+            console.error('[MQTT] Failed to parse refresh message:', err);
           }
         }
       });
@@ -71,10 +82,8 @@ export const useGunshotMQTT = () => {
       });
     };
 
-    // connect langsung
     connectMQTT();
 
-    // Reconnect logic
     const interval = setInterval(() => {
       const client = clientRef.current;
       if (!client || client.disconnected) {
@@ -87,8 +96,7 @@ export const useGunshotMQTT = () => {
       clearInterval(interval);
       clientRef.current?.end();
     };
-  }, [refreshValue, setRefreshValue]);
+  }, []);
 
-  return { gunshot, isConnected, resetGunshot, refreshValue, setRefreshValue}; // 🔥
-
+  return { gunshot, isConnected, resetGunshot, refreshSignal,  triggerRefresh,  };
 };
