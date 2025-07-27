@@ -1,10 +1,16 @@
 "use client";
 
 import { useOverlaysLeft } from "@/hooks/useOverlaysLeft";
+import { useOperasi } from "@/contexts/OperasiContext";
 import { FaBroadcastTower } from "react-icons/fa";
 import { RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
 
 const OverlaysLeft = () => {
+  const { idOperasi } = useOperasi(); // ✅ Ambil idOperasi
+
+  // ⛔️ Kalau belum pilih operasi, jangan render apa-apa
+
+
   const {
     showOdsContent,
     setShowOdsContent,
@@ -19,14 +25,14 @@ const OverlaysLeft = () => {
     hasData,
   } = useOverlaysLeft();
 
+    if (!idOperasi) return null;
+
   const getSourceType = (id_radar: number) => {
     return id_radar === 0 ? "Manusia" : "Kendaraan";
   };
 
-  // Format ID untuk gunshot - bisa berdasarkan ID asli atau timestamp
   const formatGunshotId = (item: any) => {
     if (item.source === "gunshot") {
-      // Jika dari MQTT, gunakan format timestamp
       if (item.id_radar === 0 && !item.caliber) {
         return `GS-${new Date(item.created_at * 1000).toLocaleTimeString("id-ID", {
           hour: '2-digit',
@@ -34,13 +40,11 @@ const OverlaysLeft = () => {
           second: '2-digit'
         })}`;
       }
-      // Jika dari database, gunakan ID asli
       return item.id;
     }
     return item.id;
   };
 
-  // Fungsi untuk mendapatkan label gunshot
   const getGunshotLabel = (item: any) => {
     if (item.source === "gunshot") {
       return item.caliber || "GUNSHOT";
@@ -107,16 +111,12 @@ const OverlaysLeft = () => {
               </div>
             )}
 
-            {/* Selected ODS Item */}
+            {/* Selected Item */}
             {selectedItem && (
               <div className="border border-lime-400 p-2 rounded-sm text-[0.4rem] leading-tight space-y-1 bg-[#2d2d2d]">
                 <div className="flex justify-between items-center font-bold text-xs">
                   <span>
-                    {selectedItem.source === "gunshot" ? (
-                      formatGunshotId(selectedItem)
-                    ) : (
-                      selectedItem.id
-                    )}
+                    {selectedItem.source === "gunshot" ? formatGunshotId(selectedItem) : selectedItem.id}
                   </span>
                   <span>{selectedItem.distance}</span>
                   <span>{selectedItem.time}</span>
@@ -143,7 +143,7 @@ const OverlaysLeft = () => {
               </div>
             )}
 
-            {/* List of Radar Detections */}
+            {/* Radar Data */}
             <div className="bg-[#1e1e1e] max-h-40 overflow-y-auto rounded-sm border border-neutral-700">
               {detectionData.length === 0 ? (
                 <div className="p-2 text-center text-xs text-gray-400">
@@ -227,19 +227,13 @@ const OverlaysLeft = () => {
               )}
             </div>
 
-            {/* Stats Summary (Optional) */}
+            {/* Stats Summary */}
             {hasData && (
               <div className="bg-[#1a1a1a] p-2 rounded-sm border border-neutral-700 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-green-400">
-                    Radar: {detectionData.length}
-                  </span>
-                  <span className="text-red-400">
-                    Gunshot: {gunshotData.length}
-                  </span>
-                  <span className="text-blue-400">
-                    Total: {totalDetections}
-                  </span>
+                  <span className="text-green-400">Radar: {detectionData.length}</span>
+                  <span className="text-red-400">Gunshot: {gunshotData.length}</span>
+                  <span className="text-blue-400">Total: {totalDetections}</span>
                 </div>
               </div>
             )}

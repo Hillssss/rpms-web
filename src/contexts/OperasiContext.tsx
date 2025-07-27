@@ -69,9 +69,11 @@ const getInitialState = (): Omit<
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+
+        // ⛔️ Kosongkan idOperasi agar tidak auto-fetch saat startup
         return {
-          namaOperasi: parsed.namaOperasi || "",
-          idOperasi: parsed.idOperasi || "",
+          namaOperasi: "",
+          idOperasi: "", // <== bikin kosong
           radar: parsed.radar || { latitude: "", longitude: "", altitude: "" },
           gunshot: parsed.gunshot || { latitude: "", longitude: "", altitude: "" },
         };
@@ -80,14 +82,21 @@ const getInitialState = (): Omit<
       }
     }
   }
+
   return defaultState;
 };
 
 export const OperasiProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState(getInitialState);
-  const [isStarted, setStarted] = useState(false);
-  const [isConnected, setConnected] = useState(false);
+ const [isStarted, setStarted] = useState(() => false); // Force false saat init
+const [isConnected, setConnected] = useState(() => false); // Force false saat init
   const [activate, setActivate] = useState(false);
+
+  console.log("🏁 OperasiContext INIT:", { 
+  isStarted, 
+  isConnected, 
+  idOperasi: state.idOperasi 
+});
 
   const [inputRadar, setInputRadar] = useState<Koordinat>({
     latitude: "",
@@ -156,35 +165,111 @@ export const OperasiProvider = ({ children }: { children: React.ReactNode }) => 
     }
   }, [isStarted]);
 
-  useEffect(() => {
+ useEffect(() => {
   if (!state.idOperasi) return;
 
   const syncStatus = async () => {
-    const result = await fetchCurrentOperasi(Number(state.idOperasi));
+    try {
+      // Cek status operasi
+       console.log("🔄 SYNC START for operasi:", state.idOperasi);
+      const result = await fetchCurrentOperasi(Number(state.idOperasi));
+      const aktif = result.status === 200;
+      
+      // Cek status koneksi
+      const connected = await fetchKoneksiState();
 
-    const aktif = result.status === "success";
-    setStarted(aktif);
+       console.log("📊 BACKEND RESPONSE:", { aktif, connected, result });
+      
+      // Update state bersamaan
+      setStarted(aktif);
+      setConnected(connected);
 
-    // ✅ TAMBAHKAN INI: update radar dan gunshot dari server
-    if (result.radar && result.gunshot) {
-      setOperasi({
-        radar: {
-          latitude: String(result.radar.latitude),
-          longitude: String(result.radar.longitude),
-          altitude: "",
-        },
-        gunshot: {
-          latitude: String(result.gunshot.latitude),
-          longitude: String(result.gunshot.longitude),
-          altitude: "",
-        },
-      });
+
+      console.log("✅ STATE UPDATED:", { aktif, connected });
+
+      // Update koordinat jika ada
+      if (result.radar && result.gunshot) {
+        setOperasi({
+          radar: {
+            latitude: String(result.radar.latitude),
+            longitude: String(result.radar.longitude),
+            altitude: "",
+          },
+          gunshot: {
+            latitude: String(result.gunshot.latitude),
+            longitude: String(result.gunshot.longitude),
+            altitude: "",
+          },
+        });
+      }
+    } catch (error) {
+      console.error("❌ Sync error:", error);
+      setStarted(false);
+      setConnected(false);
     }
   };
 
   syncStatus();
 }, [refreshSignal, state.idOperasi]);
-  
+
+// Tambahkan setelah useEffect terakhir (sekitar baris 175)
+useEffect(() => {
+  if (!state.idOperasi) return;
+
+  const interval = setInterval(async () => {
+    try {
+      const result = await fetchCurrentOperasi(Number(state.idOperasi));
+      const aktif = result.status === 200;
+      
+      const connected = await fetchKoneksiState();
+      
+      // Jika backend restart, reset state
+      if (!aktif && !connected) {
+        setStarted(false);
+        setConnected(false);
+      }
+    } catch (error) {
+      // API error = reset state
+      setStarted(false);
+      setConnected(false);
+    }
+  }, 3000); // Cek setiap 5 detik
+
+  return () => clearInterval(interval);
+}, [state.idOperasi]);
+
+// ✅ INITIAL SYNC saat component pertama kali mount (setelah refresh)
+useEffect(() => {
+  const initialSync = async () => {
+    if (!state.idOperasi) return;
+    
+    try {
+      console.log("🔄 Initial sync after refresh/mount...");
+      
+      // Cek kondisi backend yang sebenarnya
+      const result = await fetchCurrentOperasi(Number(state.idOperasi));
+      const aktif = result.status === 200;
+      
+      const connected = await fetchKoneksiState();
+      
+      console.log("📊 Backend state:", { aktif, connected });
+      
+      // Update state sesuai kondisi backend
+      setStarted(aktif);
+      setConnected(connected);
+      
+      console.log("✅ Initial sync completed");
+    } catch (error) {
+      console.error("❌ Initial sync error:", error);
+      // Jika API error, pastikan state reset
+      setStarted(false);
+      setConnected(false);
+    }
+  };
+
+  // Jalankan initial sync
+  initialSync();
+}, [state.idOperasi]); // Empty dependency = hanya run sekali saat component mount
 
   return (
     <OperasiContext.Provider
