@@ -9,29 +9,35 @@ export interface GunshotData {
   created_at: number;
 }
 
+const BROADCAST_CHANNEL_NAME = "mqtt-refresh";
+
 export const useGunshotMQTT = (onRefresh?: () => void) => {
   const clientRef = useRef<MqttClient | null>(null);
   const [gunshot, setGunshot] = useState<GunshotData | null>(null);
-  const resetGunshot = () => setGunshot(null);
   const [isConnected, setIsConnected] = useState(false);
-   const [refreshSignal, setRefreshSignal] = useState<number | null>(null);
-  // ⬇️ simpan onRefresh di ref supaya gak perlu masuk array dependency
+  const [refreshSignal, setRefreshSignal] = useState<number | null>(null);
+
   const onRefreshRef = useRef(onRefresh);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const resetGunshot = () => setGunshot(null);
 
   const triggerRefresh = useCallback(() => {
-    setRefreshSignal(Date.now()); // ubah timestamp untuk memicu useEffect
+    const now = Date.now();
+    setRefreshSignal(now);
+    channelRef.current?.postMessage(now);
+    if (onRefreshRef.current) onRefreshRef.current(); // opsional trigger callback manual
   }, []);
-
 
   useEffect(() => {
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
   useEffect(() => {
-    let client: MqttClient;
+    const clientId = `gunshotClient_${Math.floor(Math.random() * 1000)}`;
 
     const options = {
-      clientId: `gunshotClient_${Math.floor(Math.random() * 1000)}`,
+      clientId,
       username: '',
       password: '',
       port: 9001,
@@ -39,64 +45,85 @@ export const useGunshotMQTT = (onRefresh?: () => void) => {
       protocol: 'ws' as const,
     };
 
-    const connectMQTT = () => {
-      client = mqtt.connect('ws://127.0.0.1', options);
-      console.log('[MQTT] Attempting Gunshot MQTT connection...');
-      clientRef.current = client;
+    const brokerUrl = process.env.NEXT_PUBLIC_MQTT_HOST;
+    if (!brokerUrl) {
+      console.error("❌ MQTT broker URL not found in .env.local (NEXT_PUBLIC_MQTT_HOST)");
+      return;
+    }
 
-      client.on('connect', () => {
-        console.log('[MQTT] Connected to Gunshot MQTT');
-        setIsConnected(true);
-        client.subscribe('rpms/direction');
-        client.subscribe('rpms/logs');
-      });
+    const client = mqtt.connect(brokerUrl, options);
+    clientRef.current = client;
+    console.log("[MQTT] Attempting Gunshot MQTT connection...");
 
-      client.on('message', (topic, message) => {
-        const msg = message.toString();
-        console.log(`[MQTT] Message on ${topic}:`, msg);
+    client.on("connect", () => {
+      console.log("[MQTT] ✅ Connected to Gunshot MQTT");
+      setIsConnected(true);
+      client.subscribe("rpms/direction");
+      client.subscribe("rpms/logs");
+    });
 
-        if (topic === 'rpms/direction') {
-          try {
-            const data: GunshotData = JSON.parse(msg);
-            setGunshot(data);
-          } catch (err) {
-            console.error('[MQTT] Failed to parse gunshot message:', err);
-          }
-        } else if (topic === 'rpms/logs') {
-          try {
-            setRefreshSignal(Date.now()); // pakai timestamp
-            if (onRefreshRef.current) onRefreshRef.current(); // trigger onRefresh
-          } catch (err) {
-            console.error('[MQTT] Failed to parse refresh message:', err);
-          }
+    client.on("message", (topic, message) => {
+      const msg = message.toString();
+      console.log(`[MQTT] 📩 Message on ${topic}:`, msg);
+
+      if (topic === "rpms/direction") {
+        try {
+          const data: GunshotData = JSON.parse(msg);
+          setGunshot(data);
+        } catch (err) {
+          console.error("[MQTT] ❌ Failed to parse gunshot message:", err);
         }
-      });
+      } else if (topic === "rpms/logs") {
+        const now = Date.now();
+        setRefreshSignal(now);
+        channelRef.current?.postMessage(now);
+        if (onRefreshRef.current) onRefreshRef.current();
+      }
+    });
 
-      client.on('close', () => {
-        console.warn('[MQTT] Gunshot MQTT connection closed');
-        setIsConnected(false);
-      });
+    client.on("close", () => {
+      console.warn("[MQTT] ⚠️ Connection closed");
+      setIsConnected(false);
+    });
 
-      client.on('error', (err) => {
-        console.error('[MQTT] Error:', err);
-      });
-    };
+    client.on("error", (err) => {
+      console.error("[MQTT] ❌ Error:", err);
+    });
 
-    connectMQTT();
-
+    // Reconnect logic
     const interval = setInterval(() => {
-      const client = clientRef.current;
-      if (!client || client.disconnected) {
-        console.log('[MQTT] Gunshot MQTT disconnected, reconnecting...');
-        connectMQTT();
+      if (!client.connected) {
+        console.log("[MQTT] 🔄 Reconnecting...");
+        client.reconnect();
       }
     }, 5000);
 
     return () => {
       clearInterval(interval);
-      clientRef.current?.end();
+      client.end();
     };
   }, []);
 
-  return { gunshot, isConnected, resetGunshot, refreshSignal,  triggerRefresh,  };
+  // BroadcastChannel antar tab
+  useEffect(() => {
+    const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    channelRef.current = channel;
+
+    channel.onmessage = (event) => {
+      const received = event.data;
+      console.log("🔁 BroadcastChannel received:", received);
+      setRefreshSignal(received);
+      if (onRefreshRef.current) onRefreshRef.current();
+    };
+
+    return () => channel.close();
+  }, []);
+
+  return {
+    gunshot,
+    isConnected,
+    resetGunshot,
+    refreshSignal,
+    triggerRefresh,
+  };
 };

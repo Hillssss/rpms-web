@@ -1,10 +1,9 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { fetchKoneksiState, fetchCurrentOperasi } from "@/lib/api";
 import { useMqtt } from "@/contexts/MqttContext";
 
 // Types
-
 type Koordinat = {
   latitude: string;
   longitude: string;
@@ -50,91 +49,70 @@ const defaultState: OperasiState = {
 const OperasiContext = createContext<OperasiState>(defaultState);
 export const useOperasi = () => useContext(OperasiContext);
 
-const getInitialState = (): Omit<
-  OperasiState,
-  | "setOperasi"
-  | "setStarted"
-  | "setConnected"
-  | "isStarted"
-  | "isConnected"
-  | "activate"
-  | "setActivate"
-  | "inputRadar"
-  | "setInputRadar"
-  | "inputGunshot"
-  | "setInputGunshot"
-> => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("operasiState");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-
-        // ⛔️ Kosongkan idOperasi agar tidak auto-fetch saat startup
-        return {
-          namaOperasi: "",
-          idOperasi: "", // <== bikin kosong
-          radar: parsed.radar || { latitude: "", longitude: "", altitude: "" },
-          gunshot: parsed.gunshot || { latitude: "", longitude: "", altitude: "" },
-        };
-      } catch {
-        return defaultState;
-      }
-    }
-  }
-
-  return defaultState;
-};
-
 export const OperasiProvider = ({ children }: { children: React.ReactNode }) => {
-  const [state, setState] = useState(getInitialState);
- const [isStarted, setStarted] = useState(() => false); // Force false saat init
-const [isConnected, setConnected] = useState(() => false); // Force false saat init
+  const [state, setState] = useState(() => ({
+    namaOperasi: "",
+    idOperasi: "",
+    radar: { latitude: "", longitude: "", altitude: "" },
+    gunshot: { latitude: "", longitude: "", altitude: "" },
+  }));
+  const [isStarted, setStarted] = useState(false);
+  const [isConnected, setConnected] = useState(false);
   const [activate, setActivate] = useState(false);
-
-  console.log("🏁 OperasiContext INIT:", { 
-  isStarted, 
-  isConnected, 
-  idOperasi: state.idOperasi 
-});
-
-  const [inputRadar, setInputRadar] = useState<Koordinat>({
-    latitude: "",
-    longitude: "",
-    altitude: "",
-  });
-  const [inputGunshot, setInputGunshot] = useState<Koordinat>({
-    latitude: "",
-    longitude: "",
-    altitude: "",
-  });
+  const [inputRadar, setInputRadar] = useState<Koordinat>({ latitude: "", longitude: "", altitude: "" });
+  const [inputGunshot, setInputGunshot] = useState<Koordinat>({ latitude: "", longitude: "", altitude: "" });
 
   const { refreshSignal } = useMqtt();
 
-  const setOperasi = (
-    data: Partial<Omit<
-      OperasiState,
-      | "setOperasi"
-      | "setStarted"
-      | "setConnected"
-      | "setActivate"
-      | "isStarted"
-      | "isConnected"
-      | "activate"
-      | "inputRadar"
-      | "setInputRadar"
-      | "inputGunshot"
-      | "setInputGunshot"
-    >>
-  ) => {
-    setState((prev) => ({
-      ...prev,
-      ...data,
-      radar: { ...prev.radar, ...(data.radar ?? {}) },
-      gunshot: { ...prev.gunshot, ...(data.gunshot ?? {}) },
-    }));
-  };
+  const setOperasi = useCallback(
+    (data: Partial<Omit<OperasiState,
+      "setOperasi" | "setStarted" | "setConnected" | "setActivate" |
+      "isStarted" | "isConnected" | "activate" |
+      "inputRadar" | "setInputRadar" | "inputGunshot" | "setInputGunshot"
+    >>) => {
+      setState((prev) => ({
+        ...prev,
+        ...data,
+        radar: { ...prev.radar, ...(data.radar ?? {}) },
+        gunshot: { ...prev.gunshot, ...(data.gunshot ?? {}) },
+      }));
+    },
+    []
+  );
 
+  // ✅ Restore dari localStorage jika idOperasi valid di backend
+  useEffect(() => {
+    const restoreOperasiIfValid = async () => {
+      const saved = localStorage.getItem("operasiState");
+      if (!saved) return;
+
+      try {
+        const parsed = JSON.parse(saved);
+        const id = parsed?.idOperasi;
+
+        if (!id) return;
+
+        const result = await fetchCurrentOperasi(Number(id));
+        const aktif = result.status === 200;
+
+        if (!aktif) return; // ❌ Skip jika tidak valid di backend
+
+        console.log("🟢 Restore operasi dari localStorage:", id);
+        setOperasi({
+          idOperasi: id,
+          namaOperasi: parsed.namaOperasi || "",
+          radar: parsed.radar || { latitude: "", longitude: "", altitude: "" },
+          gunshot: parsed.gunshot || { latitude: "", longitude: "", altitude: "" },
+        });
+      } catch (err) {
+        console.error("❌ Gagal restore operasi:", err);
+      }
+    };
+
+    restoreOperasiIfValid();
+  }, [setOperasi]);
+
+  // ✅ Simpan ke localStorage jika state berubah
   useEffect(() => {
     const toSave = {
       ...state,
@@ -145,6 +123,7 @@ const [isConnected, setConnected] = useState(() => false); // Force false saat i
     localStorage.setItem("operasiState", JSON.stringify(toSave));
   }, [state, isStarted, isConnected, activate]);
 
+  // ✅ Hanya sync koneksi backend
   useEffect(() => {
     const syncConnectionState = async () => {
       const result = await fetchKoneksiState();
@@ -160,116 +139,62 @@ const [isConnected, setConnected] = useState(() => false); // Force false saat i
       }
     };
 
-    if (isStarted) {
-      syncConnectionState();
-    }
+    if (isStarted) syncConnectionState();
   }, [isStarted]);
 
- useEffect(() => {
-  if (!state.idOperasi) return;
+  // ✅ Sync operasi (dengan MQTT signal, interval, atau mount)
+  const syncBackendStatus = useCallback(
+    async (source: string) => {
+      if (!state.idOperasi) return;
 
-  const syncStatus = async () => {
-    try {
-      // Cek status operasi
-       console.log("🔄 SYNC START for operasi:", state.idOperasi);
-      const result = await fetchCurrentOperasi(Number(state.idOperasi));
-      const aktif = result.status === 200;
-      
-      // Cek status koneksi
-      const connected = await fetchKoneksiState();
+      try {
+        console.log(`🔄 SYNC (${source}) for operasi:`, state.idOperasi);
+        const result = await fetchCurrentOperasi(Number(state.idOperasi));
+        const aktif = result.status === 200;
+        const connected = await fetchKoneksiState();
 
-       console.log("📊 BACKEND RESPONSE:", { aktif, connected, result });
-      
-      // Update state bersamaan
-      setStarted(aktif);
-      setConnected(connected);
+        setStarted(aktif);
+        setConnected(connected);
 
+        console.log("✅ STATE UPDATED:", { aktif, connected });
 
-      console.log("✅ STATE UPDATED:", { aktif, connected });
-
-      // Update koordinat jika ada
-      if (result.radar && result.gunshot) {
-        setOperasi({
-          radar: {
-            latitude: String(result.radar.latitude),
-            longitude: String(result.radar.longitude),
-            altitude: "",
-          },
-          gunshot: {
-            latitude: String(result.gunshot.latitude),
-            longitude: String(result.gunshot.longitude),
-            altitude: "",
-          },
-        });
-      }
-    } catch (error) {
-      console.error("❌ Sync error:", error);
-      setStarted(false);
-      setConnected(false);
-    }
-  };
-
-  syncStatus();
-}, [refreshSignal, state.idOperasi]);
-
-// Tambahkan setelah useEffect terakhir (sekitar baris 175)
-useEffect(() => {
-  if (!state.idOperasi) return;
-
-  const interval = setInterval(async () => {
-    try {
-      const result = await fetchCurrentOperasi(Number(state.idOperasi));
-      const aktif = result.status === 200;
-      
-      const connected = await fetchKoneksiState();
-      
-      // Jika backend restart, reset state
-      if (!aktif && !connected) {
+        if (result.radar && result.gunshot) {
+          setOperasi({
+            radar: {
+              latitude: String(result.radar.latitude),
+              longitude: String(result.radar.longitude),
+              altitude: "",
+            },
+            gunshot: {
+              latitude: String(result.gunshot.latitude),
+              longitude: String(result.gunshot.longitude),
+              altitude: "",
+            },
+          });
+        }
+      } catch (error) {
+        console.error("❌ Sync error:", error);
         setStarted(false);
         setConnected(false);
       }
-    } catch (error) {
-      // API error = reset state
-      setStarted(false);
-      setConnected(false);
-    }
-  }, 3000); // Cek setiap 5 detik
+    },
+    [state.idOperasi, setOperasi]
+  );
 
-  return () => clearInterval(interval);
-}, [state.idOperasi]);
+  useEffect(() => {
+    syncBackendStatus("refreshSignal");
+  }, [refreshSignal, syncBackendStatus]);
 
-// ✅ INITIAL SYNC saat component pertama kali mount (setelah refresh)
-useEffect(() => {
-  const initialSync = async () => {
-    if (!state.idOperasi) return;
-    
-    try {
-      console.log("🔄 Initial sync after refresh/mount...");
-      
-      // Cek kondisi backend yang sebenarnya
-      const result = await fetchCurrentOperasi(Number(state.idOperasi));
-      const aktif = result.status === 200;
-      
-      const connected = await fetchKoneksiState();
-      
-      console.log("📊 Backend state:", { aktif, connected });
-      
-      // Update state sesuai kondisi backend
-      setStarted(aktif);
-      setConnected(connected);
-      
-      console.log("✅ Initial sync completed");
-    } catch (error) {
-      console.error("❌ Initial sync error:", error);
-      // Jika API error, pastikan state reset
-      setStarted(false);
-      setConnected(false);
-    }
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncBackendStatus("interval");
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [syncBackendStatus]);
 
-  // Jalankan initial sync
-  initialSync();
-}, [state.idOperasi]); // Empty dependency = hanya run sekali saat component mount
+  useEffect(() => {
+    syncBackendStatus("initialMount");
+  }, [syncBackendStatus]);
 
   return (
     <OperasiContext.Provider
